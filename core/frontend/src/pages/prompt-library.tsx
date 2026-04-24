@@ -140,13 +140,26 @@ export default function PromptLibrary() {
     promptsApi.list().then((r) => setCustomPrompts(r.prompts)).catch(() => {});
   }, []);
 
-  // Merge built-in + custom prompts
-  const allPrompts = useMemo(() => [...customPrompts, ...prompts], [customPrompts]);
+  // Filtered custom (my) prompts
+  const filteredCustom = useMemo(() => {
+    let result: (Prompt | CustomPrompt)[] = customPrompts;
+    if (selectedCategory && selectedCategory !== "custom") {
+      result = result.filter((p) => p.category === selectedCategory);
+    }
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(
+        (p) => p.title.toLowerCase().includes(query) || p.content.toLowerCase().includes(query),
+      );
+    }
+    return result;
+  }, [customPrompts, searchQuery, selectedCategory]);
 
-  const filteredPrompts = useMemo(() => {
-    let result = allPrompts;
+  // Filtered built-in (community) prompts
+  const filteredBuiltIn = useMemo(() => {
+    let result: Prompt[] = prompts;
     if (selectedCategory === "custom") {
-      result = result.filter((p) => "custom" in p && p.custom);
+      result = [];
     } else if (selectedCategory) {
       result = result.filter((p) => p.category === selectedCategory);
     }
@@ -157,13 +170,13 @@ export default function PromptLibrary() {
       );
     }
     return result;
-  }, [allPrompts, searchQuery, selectedCategory]);
+  }, [searchQuery, selectedCategory]);
 
   // Reset page when filters change
   useEffect(() => setPage(0), [searchQuery, selectedCategory]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredPrompts.length / PAGE_SIZE));
-  const pagedPrompts = filteredPrompts.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(filteredBuiltIn.length / PAGE_SIZE));
+  const pagedBuiltIn = filteredBuiltIn.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   const handleUsePrompt = (content: string, category: string) => {
     const queenId = categoryToQueen[category];
@@ -196,7 +209,7 @@ export default function PromptLibrary() {
                 Prompt Library
               </h2>
               <span className="text-xs text-muted-foreground">
-                {allPrompts.length} prompts across {promptCategories.length + (customCount > 0 ? 1 : 0)} categories
+                {customCount > 0 ? `${customCount} custom · ` : ""}{prompts.length} community prompts
               </span>
             </div>
             <button onClick={() => setAddModalOpen(true)}
@@ -240,23 +253,47 @@ export default function PromptLibrary() {
 
         {/* Prompts grid */}
         <div className="flex-1 overflow-y-auto p-6">
-          {pagedPrompts.length > 0 ? (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {pagedPrompts.map((prompt) => (
-                <PromptCard
-                  key={typeof prompt.id === "string" ? prompt.id : `builtin-${prompt.id}`}
-                  prompt={prompt}
-                  onUse={handleUsePrompt}
-                  onDelete={"custom" in prompt && prompt.custom ? () => handleDeletePrompt(prompt.id as string) : undefined}
-                />
-              ))}
-            </div>
-          ) : (
+          {filteredCustom.length === 0 && pagedBuiltIn.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center">
               <Sparkles className="w-10 h-10 text-muted-foreground/30 mb-3" />
               <p className="text-sm text-muted-foreground">No prompts found</p>
               <p className="text-xs text-muted-foreground/60 mt-1">Try adjusting your search or category filter</p>
             </div>
+          ) : (
+            <>
+              {/* My Prompts section */}
+              {filteredCustom.length > 0 && (
+                <div className="mb-8">
+                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">My Prompts</h3>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {filteredCustom.map((prompt) => (
+                      <PromptCard
+                        key={prompt.id as string}
+                        prompt={prompt}
+                        onUse={handleUsePrompt}
+                        onDelete={"custom" in prompt && prompt.custom ? () => handleDeletePrompt(prompt.id as string) : undefined}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Community Prompts section */}
+              {pagedBuiltIn.length > 0 && selectedCategory !== "custom" && (
+                <div>
+                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Community Prompts</h3>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {pagedBuiltIn.map((prompt) => (
+                      <PromptCard
+                        key={`builtin-${prompt.id}`}
+                        prompt={prompt}
+                        onUse={handleUsePrompt}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -264,7 +301,7 @@ export default function PromptLibrary() {
         {totalPages > 1 && (
           <div className="px-6 py-3 border-t border-border/60 flex items-center justify-between">
             <span className="text-xs text-muted-foreground">
-              {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filteredPrompts.length)} of {filteredPrompts.length}
+              {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filteredBuiltIn.length)} of {filteredBuiltIn.length}
             </span>
             <div className="flex items-center gap-1">
               <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}

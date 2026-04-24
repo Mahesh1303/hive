@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Wrench, Crown, Network, Server, Loader2, AlertCircle } from "lucide-react";
 import { queensApi } from "@/api/queens";
 import { coloniesApi, type ColonySummary } from "@/api/colonies";
-import { slugToDisplayName } from "@/lib/colony-registry";
+import { slugToDisplayName, sortQueenProfiles } from "@/lib/colony-registry";
 import QueenToolsSection from "@/components/QueenToolsSection";
 import ColonyToolsSection from "@/components/ColonyToolsSection";
 import McpServersPanel from "@/components/McpServersPanel";
@@ -19,7 +19,7 @@ export default function ToolLibrary() {
         <div className="flex items-baseline gap-3 mb-3">
           <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
             <Wrench className="w-5 h-5 text-primary" />
-            Tool Library
+            Tool Configuration
           </h2>
           <span className="text-xs text-muted-foreground">
             Curate which tools each queen and colony can call, and register your own MCP servers.
@@ -88,8 +88,9 @@ function QueensTab() {
     queensApi
       .list()
       .then((r) => {
-        setQueens(r.queens);
-        if (r.queens.length > 0) setSelected((prev) => prev ?? r.queens[0].id);
+        const sorted = sortQueenProfiles(r.queens);
+        setQueens(sorted);
+        if (sorted.length > 0) setSelected((prev) => prev ?? sorted[0].id);
       })
       .catch((e: Error) => setError(e.message || "Failed to load queens"));
   }, []);

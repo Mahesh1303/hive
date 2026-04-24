@@ -167,11 +167,18 @@ export default function Sidebar() {
           <span>Org Chart</span>
         </button>
         <button
+          onClick={() => navigate("/credentials")}
+          className="flex items-center gap-2.5 px-3 py-1.5 rounded-md text-sm text-foreground/70 hover:bg-sidebar-item-hover hover:text-foreground transition-colors"
+        >
+          <KeyRound className="w-4 h-4" />
+          <span>Credentials</span>
+        </button>
+        <button
           onClick={() => setLibraryExpanded((v) => !v)}
           className="flex items-center gap-2.5 px-3 py-1.5 rounded-md text-sm text-foreground/70 hover:bg-sidebar-item-hover hover:text-foreground transition-colors"
         >
           <Library className="w-4 h-4" />
-          <span className="flex-1 text-left">Library</span>
+          <span className="flex-1 text-left">Configuration</span>
           <ChevronDown
             className={`w-3.5 h-3.5 transition-transform ${
               libraryExpanded ? "" : "-rotate-90"
@@ -181,16 +188,16 @@ export default function Sidebar() {
         {libraryExpanded && (
           <>
             <button
-              onClick={() => navigate("/skills-library")}
-              className="flex items-center gap-2.5 pl-9 pr-3 py-1.5 rounded-md text-sm text-foreground/70 hover:bg-sidebar-item-hover hover:text-foreground transition-colors"
-            >
-              <span>Skills</span>
-            </button>
-            <button
               onClick={() => navigate("/prompt-library")}
               className="flex items-center gap-2.5 pl-9 pr-3 py-1.5 rounded-md text-sm text-foreground/70 hover:bg-sidebar-item-hover hover:text-foreground transition-colors"
             >
               <span>Prompts</span>
+            </button>
+            <button
+              onClick={() => navigate("/skills-library")}
+              className="flex items-center gap-2.5 pl-9 pr-3 py-1.5 rounded-md text-sm text-foreground/70 hover:bg-sidebar-item-hover hover:text-foreground transition-colors"
+            >
+              <span>Skills</span>
             </button>
             <button
               onClick={() => navigate("/tool-library")}
@@ -200,13 +207,6 @@ export default function Sidebar() {
             </button>
           </>
         )}
-        <button
-          onClick={() => navigate("/credentials")}
-          className="flex items-center gap-2.5 px-3 py-1.5 rounded-md text-sm text-foreground/70 hover:bg-sidebar-item-hover hover:text-foreground transition-colors"
-        >
-          <KeyRound className="w-4 h-4" />
-          <span>Credentials</span>
-        </button>
       </div>
 
       {/* COLONIES section */}

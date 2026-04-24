@@ -210,18 +210,18 @@ def _catalog_from_live_session(session: Any) -> dict[str, list[dict[str, Any]]]:
             return {}
         mcp_names = getattr(phase_state, "mcp_tool_names_all", set()) or set()
         independent_tools = getattr(phase_state, "independent_tools", []) or []
-        result: dict[str, list[dict[str, Any]]] = {"(unknown)": []}
+        result: dict[str, list[dict[str, Any]]] = {"MCP Tools": []}
         for tool in independent_tools:
             if tool.name not in mcp_names:
                 continue
-            result["(unknown)"].append(
+            result["MCP Tools"].append(
                 {
                     "name": tool.name,
                     "description": tool.description,
                     "input_schema": tool.parameters,
                 }
             )
-        return result if result["(unknown)"] else {}
+        return result if result["MCP Tools"] else {}
 
     server_map = getattr(registry, "_mcp_server_tools", {}) or {}
     tools_by_name = {t.name: t for t in registry.get_tools().values()}

@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { queensApi } from "@/api/queens";
 import { coloniesApi, type ColonySummary } from "@/api/colonies";
-import { slugToDisplayName } from "@/lib/colony-registry";
+import { slugToDisplayName, sortQueenProfiles } from "@/lib/colony-registry";
 import { ApiError } from "@/api/client";
 import {
   skillsApi,
@@ -72,7 +72,7 @@ export default function SkillsLibrary() {
         <div className="flex items-baseline gap-3 mb-3">
           <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
             <Library className="w-5 h-5 text-primary" />
-            Skills Library
+            Skills Configuration
           </h2>
           <span className="text-xs text-muted-foreground">
             Curate which skills each queen and colony exposes, upload your own, or browse the full catalog.
@@ -141,8 +141,9 @@ function QueensTab() {
     queensApi
       .list()
       .then((r) => {
-        setQueens(r.queens);
-        if (r.queens.length > 0) setSelected((prev) => prev ?? r.queens[0].id);
+        const sorted = sortQueenProfiles(r.queens);
+        setQueens(sorted);
+        if (sorted.length > 0) setSelected((prev) => prev ?? sorted[0].id);
       })
       .catch((e: Error) => setError(e.message || "Failed to load queens"));
   }, []);
@@ -354,17 +355,46 @@ function SkillsPerScopeSection({
         <p className="text-sm text-muted-foreground">No skills match your filter.</p>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {filtered.map((row) => (
-          <SkillCard
-            key={row.name}
-            row={row}
-            onToggle={() => toggle(row)}
-            onOpen={() => setDetailName(row.name)}
-            onRemove={row.deletable ? () => remove(row) : undefined}
-          />
-        ))}
-      </div>
+      {(() => {
+        const active = filtered.filter((r) => r.enabled);
+        const inactive = filtered.filter((r) => !r.enabled);
+        return (
+          <>
+            {active.length > 0 && (
+              <div className="mb-6">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Active</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {active.map((row) => (
+                    <SkillCard
+                      key={row.name}
+                      row={row}
+                      onToggle={() => toggle(row)}
+                      onOpen={() => setDetailName(row.name)}
+                      onRemove={row.deletable ? () => remove(row) : undefined}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+            {inactive.length > 0 && (
+              <div>
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Inactive</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {inactive.map((row) => (
+                    <SkillCard
+                      key={row.name}
+                      row={row}
+                      onToggle={() => toggle(row)}
+                      onOpen={() => setDetailName(row.name)}
+                      onRemove={row.deletable ? () => remove(row) : undefined}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        );
+      })()}
 
       <CreateSkillModal
         open={createOpen}
@@ -430,9 +460,9 @@ function CatalogTab() {
         <div className="flex-1" />
         <button
           onClick={() => setUploadOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border/60 bg-card text-sm font-medium text-foreground hover:bg-muted/50"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary/10 text-primary text-sm font-medium hover:bg-primary/20"
         >
-          <Upload className="w-3.5 h-3.5" /> Upload
+          <Upload className="w-3.5 h-3.5" /> Upload Skill
         </button>
       </div>
 
