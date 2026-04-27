@@ -180,6 +180,19 @@ class AgentContext:
 
     stream_id: str = ""
 
+    # ----- Task system fields (see framework/tasks) -------------------
+    # task_list_id: this agent's own session-scoped list, e.g.
+    #   session:{agent_id}:{session_id}. Set by the runner / ColonyRuntime
+    #   before the loop starts; immutable after first task_create.
+    task_list_id: str | None = None
+    # colony_id: set on the queen of a colony AND on every spawned worker
+    #   so workers can render the "picked up" chip and the queen can address
+    #   her colony template via colony_template_* tools.
+    colony_id: str | None = None
+    # picked_up_from: for workers, the (colony_task_list_id, template_task_id)
+    #   pair their session was spawned for. None for the queen and queen-DM.
+    picked_up_from: tuple[str, int] | None = None
+
     dynamic_tools_provider: Any = None
     dynamic_prompt_provider: Any = None
     # Optional Callable[[], str]: when set alongside ``dynamic_prompt_provider``,

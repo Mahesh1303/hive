@@ -358,6 +358,7 @@ def create_app(model: str | None = None) -> web.Application:
     from framework.server.routes_queens import register_routes as register_queen_routes
     from framework.server.routes_sessions import register_routes as register_session_routes
     from framework.server.routes_skills import register_routes as register_skills_routes
+    from framework.server.routes_tasks import register_routes as register_task_routes
     from framework.server.routes_workers import register_routes as register_worker_routes
 
     register_config_routes(app)
@@ -375,6 +376,7 @@ def create_app(model: str | None = None) -> web.Application:
     register_colony_worker_routes(app)
     register_prompt_routes(app)
     register_skills_routes(app)
+    register_task_routes(app)
 
     # Static file serving — Option C production mode
     # If frontend/dist/ exists, serve built frontend files on /

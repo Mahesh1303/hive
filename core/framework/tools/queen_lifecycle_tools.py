@@ -1328,6 +1328,35 @@ def register_queen_lifecycle_tools(
                 _pinned,
             )
 
+        # Publish a colony template entry per task BEFORE spawning so
+        # the entries' template ids can be threaded into the spawn data
+        # (workers' ctx.picked_up_from references them). This mirrors the
+        # plan §5d "auto-populated by run_parallel_workers" behavior.
+        _template_ids: list[int | None] = [None] * len(normalised)
+        try:
+            from framework.tasks import TaskListRole, get_task_store
+            from framework.tasks.scoping import colony_task_list_id
+
+            _task_store = get_task_store()
+            _template_list_id = colony_task_list_id(_colony_id or "primary")
+            await _task_store.ensure_task_list(_template_list_id, role=TaskListRole.TEMPLATE)
+            for i, spec in enumerate(normalised):
+                rec = await _task_store.create_task(
+                    _template_list_id,
+                    subject=spec["task"][:200],
+                    description=spec["task"],
+                )
+                _template_ids[i] = rec.id
+                # Thread the template id into the worker's spawn data so
+                # ColonyRuntime.spawn populates ctx.picked_up_from correctly.
+                spec["data"] = dict(spec.get("data") or {})
+                spec["data"]["__template_task_id"] = rec.id
+        except Exception:
+            logger.warning(
+                "run_parallel_workers: colony template publish failed (non-fatal)",
+                exc_info=True,
+            )
+
         try:
             worker_ids = await colony.spawn_batch(
                 normalised,
@@ -1335,6 +1364,33 @@ def register_queen_lifecycle_tools(
             )
         except Exception as e:
             return json.dumps({"error": f"spawn_batch failed: {e}"})
+
+        # Stamp `assigned_session` on each template entry post-spawn so the
+        # UI's colony-overview panel can render the assigned-session chip.
+        try:
+            from framework.tasks.events import emit_colony_template_assignment
+            from framework.tasks.scoping import session_task_list_id
+
+            for tid, wid in zip(_template_ids, worker_ids, strict=False):
+                if tid is None:
+                    continue
+                _assigned = session_task_list_id(wid, wid)
+                await _task_store.update_task(
+                    _template_list_id,
+                    tid,
+                    metadata_patch={
+                        "assigned_session": _assigned,
+                        "assigned_worker_id": wid,
+                    },
+                )
+                await emit_colony_template_assignment(
+                    colony_id=_colony_id or "primary",
+                    task_id=tid,
+                    assigned_session=_assigned,
+                    assigned_worker_id=wid,
+                )
+        except Exception:
+            logger.debug("run_parallel_workers: failed to stamp template assignments", exc_info=True)
 
         # Phase transition — workers are now live, queen is in "working"
         # phase. Worker-finish auto-transitions back to "reviewing" once

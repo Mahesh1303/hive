@@ -488,6 +488,21 @@ async def create_queen(
         phase_state=phase_state,
     )
 
+    # ---- Task system tools --------------------------------------------
+    # Every queen gets the four session task tools. Queens-of-colony
+    # additionally get the colony_template_* tools (gated by colony_id).
+    from framework.tasks.tools import (
+        register_colony_template_tools,
+        register_task_tools,
+    )
+
+    register_task_tools(queen_registry)
+    _colony_id_for_queen = getattr(session, "colony_id", None) or getattr(
+        getattr(session, "colony_runtime", None), "_colony_id", None
+    )
+    if _colony_id_for_queen:
+        register_colony_template_tools(queen_registry, colony_id=_colony_id_for_queen)
+
     # ---- Colony runtime check (only when worker is loaded) ----------------
     if session.colony_runtime:
         from framework.tools.worker_monitoring_tools import register_worker_monitoring_tools
@@ -919,10 +934,22 @@ async def create_queen(
         # token stays local to this task.
         try:
             from framework.loader.tool_registry import ToolRegistry
+            from framework.tasks.scoping import session_task_list_id
 
-            ToolRegistry.set_execution_context(profile=session.id)
+            queen_agent_id = getattr(session, "agent_id", None) or "queen"
+            queen_list_id = session_task_list_id(queen_agent_id, session.id)
+            colony_id = (
+                getattr(session, "colony_id", None)
+                or getattr(getattr(session, "colony_runtime", None), "_colony_id", None)
+            )
+            ToolRegistry.set_execution_context(
+                profile=session.id,
+                agent_id=queen_agent_id,
+                task_list_id=queen_list_id,
+                colony_id=colony_id,
+            )
         except Exception:
-            logger.debug("Queen: failed to set browser profile for session %s", session.id, exc_info=True)
+            logger.debug("Queen: failed to set execution context for session %s", session.id, exc_info=True)
         try:
             lc = _queen_loop_config
             queen_loop_config = LoopConfig(

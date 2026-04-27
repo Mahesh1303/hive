@@ -287,7 +287,13 @@ export type EventTypeName =
   | "trigger_fired"
   | "trigger_removed"
   | "trigger_updated"
-  | "queen_identity_selected";
+  | "queen_identity_selected"
+  | "task_created"
+  | "task_updated"
+  | "task_deleted"
+  | "task_list_reset"
+  | "task_list_reattach_mismatch"
+  | "colony_template_assignment";
 
 export interface AgentEvent {
   type: EventTypeName;

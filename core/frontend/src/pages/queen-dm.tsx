@@ -18,6 +18,7 @@ import {
   replayEventsToMessages,
 } from "@/lib/chat-helpers";
 import { useColony } from "@/context/ColonyContext";
+import { useColonyWorkers } from "@/context/ColonyWorkersContext";
 import { useHeaderActions } from "@/context/HeaderActionsContext";
 import { getQueenForAgent, slugToColonyId } from "@/lib/colony-registry";
 
@@ -118,6 +119,16 @@ export default function QueenDM() {
   const [queenPhase, setQueenPhase] = useState<
     "independent" | "incubating" | "working" | "reviewing"
   >("independent");
+
+  // Publish the active session id into the shared workers/tasks context
+  // so AppLayout's right-rail TaskListPanel can attach to it. The colony
+  // workers panel itself stays hidden in queen-DM because we don't set
+  // colonyName (AppLayout requires both — see LayoutShell).
+  const { setSessionId: setCtxSessionId } = useColonyWorkers();
+  useEffect(() => {
+    setCtxSessionId(sessionId ?? null);
+    return () => setCtxSessionId(null);
+  }, [sessionId, setCtxSessionId]);
 
   const resetViewState = useCallback(() => {
     setSessionId(null);

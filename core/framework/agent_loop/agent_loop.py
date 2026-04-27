@@ -421,6 +421,14 @@ class AgentLoop(AgentProtocol):
         # dashboards can build aggregates over many runs.
         self._counters: dict[str, int] = {}
 
+        # Task-system reminder state (see framework/tasks/reminders.py).
+        # Bumped each iteration; reset whenever a task op tool was called
+        # in the iteration that just completed; nudges the agent via the
+        # injection queue when it's been silent on tasks for too long.
+        from framework.tasks.reminders import ReminderState as _RS
+
+        self._task_reminder_state: _RS = _RS()
+
     def _bump(self, key: str, by: int = 1) -> None:
         """Increment a reliability counter (creates the key on first use)."""
         self._counters[key] = self._counters.get(key, 0) + by
@@ -991,6 +999,17 @@ class AgentLoop(AgentProtocol):
                     )
                     total_input_tokens += turn_tokens.get("input", 0)
                     total_output_tokens += turn_tokens.get("output", 0)
+
+                    # Task-system reminder: if the model has been silent on
+                    # task ops for too long but still has open tasks, drop
+                    # a steering reminder onto the injection queue. Drained
+                    # at the next iteration's 6b so it lands as the next
+                    # user turn via the normal injection path. Best-effort
+                    # — never raises.
+                    try:
+                        await self._maybe_inject_task_reminder(ctx, logged_tool_calls)
+                    except Exception:
+                        logger.debug("task reminder check failed", exc_info=True)
                     await self._publish_llm_turn_complete(
                         stream_id,
                         node_id,
@@ -4203,6 +4222,74 @@ class AgentLoop(AgentProtocol):
             node_id=node_id,
             execution_id=execution_id,
         )
+
+    async def _maybe_inject_task_reminder(
+        self,
+        ctx: AgentContext,
+        logged_tool_calls: list[dict[str, Any]] | None,
+    ) -> None:
+        """Layer 3 task-system steering — periodic reminder injection.
+
+        Called once per iteration after the LLM turn completes. If the
+        model has been silent on task ops for a while AND there are open
+        tasks on its session list, queue a system-style reminder onto
+        the injection queue so the next iteration drains it as a user
+        turn. Idempotent / safe to call always — gates internally.
+
+        ``logged_tool_calls`` is a list of dicts with at least a "name"
+        key, as accumulated by ``_run_single_turn``. Names like
+        ``task_create``, ``task_update``, ``colony_template_*`` reset
+        the counter (see ``framework.tasks.reminders.TASK_OP_TOOL_NAMES``).
+        """
+        from framework.tasks import get_task_store
+        from framework.tasks.models import TaskStatus
+        from framework.tasks.reminders import build_reminder, saw_task_op
+
+        state = self._task_reminder_state
+
+        # 1. Update counters based on this turn's tool calls.
+        names: list[str] = []
+        for call in logged_tool_calls or []:
+            try:
+                name = call.get("name") or call.get("tool_name")
+                if name:
+                    names.append(name)
+            except (AttributeError, TypeError):
+                continue
+        if saw_task_op(names):
+            state.on_task_op()
+        state.on_iteration()
+
+        # 2. Resolve the agent's task list. Skip if context isn't wired yet.
+        list_id = getattr(ctx, "task_list_id", None)
+        if not list_id:
+            return
+
+        # 3. Read the open-task snapshot. Best-effort.
+        try:
+            store = get_task_store()
+            records = await store.list_tasks(list_id)
+        except Exception:
+            return
+        open_tasks = [r for r in records if r.status != TaskStatus.COMPLETED]
+        if not state.should_remind(bool(open_tasks)):
+            return
+
+        body = build_reminder(records)
+        if not body:
+            return
+
+        # 4. Enqueue. Drained at the next iteration's 6b drain step and
+        # rendered as a user turn (with the "[External event]" prefix).
+        await self._injection_queue.put((body, False, None))
+        state.on_reminder_sent()
+        logger.info(
+            "[task-reminder] queued nudge for %s (open=%d, silent_turns=%d)",
+            list_id,
+            len(open_tasks),
+            state.turns_since_task_op,
+        )
+        self._bump("task_reminders_sent")
 
     async def _run_hooks(
         self,

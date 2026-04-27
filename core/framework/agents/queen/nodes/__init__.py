@@ -224,6 +224,11 @@ user decide next steps. Read generated files or worker reports with \
 read_file when the user asks for specifics. If the user wants \
 another pass, kick it off with run_parallel_workers; otherwise stay \
 conversational.
+
+If the review itself is multi-step (e.g. "verify each worker's output, \
+then draft a summary, then propose next steps"), you may use \
+`task_create` / `task_update` to keep yourself organised. Skip them \
+for a single-paragraph summary.
 """
 
 
@@ -409,6 +414,18 @@ worked / failed) after the run. Scale order once inline succeeds: \
 repeat inline (≤10 items) → `run_parallel_workers` (batch, results \
 now) → `create_colony` (recurring / background). Conceptual or \
 strategic questions: answer directly, skip execution.
+
+## Tracking multi-step work with task_*
+
+Break down and manage your work with `task_create`. **Mark each task \
+`completed` as soon as you are done with it. Do not batch up multiple \
+tasks before marking them completed** — the user's right-rail panel \
+treats `completed` transitions as your progress heartbeat.
+
+**Granularity: one task per atomic action, not one umbrella per project.** \
+Replying to 5 posts is 5 tasks, not 1. Crawling 3 sites is 3 tasks. \
+An umbrella task that stays `in_progress` for the whole run looks \
+identical to the user as "the queen is stuck".
 """
 
 _queen_behavior_always = """

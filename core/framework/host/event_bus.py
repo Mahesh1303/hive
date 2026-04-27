@@ -165,6 +165,14 @@ class EventType(StrEnum):
     TRIGGER_REMOVED = "trigger_removed"
     TRIGGER_UPDATED = "trigger_updated"
 
+    # Task system lifecycle (per-list diffs streamed to the UI)
+    TASK_CREATED = "task_created"
+    TASK_UPDATED = "task_updated"
+    TASK_DELETED = "task_deleted"
+    TASK_LIST_RESET = "task_list_reset"
+    TASK_LIST_REATTACH_MISMATCH = "task_list_reattach_mismatch"
+    COLONY_TEMPLATE_ASSIGNMENT = "colony_template_assignment"
+
 
 @dataclass
 class AgentEvent:

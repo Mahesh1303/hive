@@ -154,11 +154,24 @@ class Worker:
         # value without affecting the queen's ongoing calls.
         try:
             from framework.loader.tool_registry import ToolRegistry
+            from framework.tasks.scoping import session_task_list_id
 
-            ToolRegistry.set_execution_context(profile=self.id)
+            ctx = self._context
+            agent_id = getattr(ctx, "agent_id", None) or self.id
+            list_id = (
+                getattr(ctx, "task_list_id", None)
+                or session_task_list_id(agent_id, self.id)
+            )
+            ToolRegistry.set_execution_context(
+                profile=self.id,
+                agent_id=agent_id,
+                task_list_id=list_id,
+                colony_id=getattr(ctx, "colony_id", None),
+                picked_up_from=getattr(ctx, "picked_up_from", None),
+            )
         except Exception:
             logger.debug(
-                "Worker %s: failed to scope browser profile",
+                "Worker %s: failed to scope execution context",
                 self.id,
                 exc_info=True,
             )

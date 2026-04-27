@@ -155,6 +155,17 @@ class SessionState(BaseModel):
     # True after first successful worker execution (gates trigger delivery on restart)
     worker_configured: bool = Field(default=False)
 
+    # Task-system fields (see framework/tasks).
+    # task_list_id: this session's own task list id (populated on first
+    #   task_create; immutable thereafter). Used for resume reattachment —
+    #   if it differs from resolve_task_list_id(ctx) on resume, a
+    #   TASK_LIST_REATTACH_MISMATCH event is emitted and a fresh list is
+    #   created at the resolved id (the orphan stays on disk).
+    task_list_id: str | None = None
+    # picked_up_from: for worker sessions, the (colony_task_list_id,
+    #   template_task_id) pair this session was spawned for.
+    picked_up_from: list[Any] | None = None
+
     model_config = {"extra": "allow"}
 
     @property

@@ -35,6 +35,10 @@ import { sessionsApi } from "@/api/sessions";
 import { cronToLabel } from "@/lib/graphUtils";
 import type { GraphNode } from "@/components/graph-types";
 import { useColonyWorkers } from "@/context/ColonyWorkersContext";
+import TaskListPanel from "@/components/TaskListPanel";
+
+// Re-export so the WorkerDetail block can use it without forward decl.
+const TaskListPanelLazy = TaskListPanel;
 import { DataGrid, type SortDir } from "@/components/data-grid";
 
 interface ColonyWorkersPanelProps {
@@ -1607,12 +1611,39 @@ function WorkerDetail({
         )}
       </div>
 
+      {/* Worker session task list — embedded panel, not a separate rail. */}
+      <div className="mb-3">
+        <WorkerTaskList workerId={workerId} colonyName={colonyName} />
+      </div>
+
       {isHistorical ? (
         <HistoricalWorkerPlaceholder workerId={workerId} />
       ) : (
         <LiveWorkerProgress colonyName={colonyName} workerId={workerId} />
       )}
     </div>
+  );
+}
+
+function WorkerTaskList({
+  workerId,
+  colonyName: _colonyName,
+}: {
+  workerId: string;
+  colonyName: string | null;
+}) {
+  // Workers' task_list_id is session:{worker_id}:{worker_id} (the worker's
+  // session_id == its worker_id under ColonyRuntime.spawn). The SSE
+  // events for it ride on the colony's bus, which we subscribe to via
+  // the queen's session id (already streaming in this view).
+  const { sessionId } = useColonyWorkers();
+  return (
+    <TaskListPanelLazy
+      taskListId={`session:${workerId}:${workerId}`}
+      sessionId={sessionId ?? ""}
+      title="Worker session"
+      variant="embedded"
+    />
   );
 }
 
