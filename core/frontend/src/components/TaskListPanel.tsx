@@ -108,6 +108,25 @@ function TaskListPanelInner({ title, variant = "rail", onClose }: TaskListPanelP
           </p>
         ) : (
           <>
+            {/* Completed sits above Active so finished tasks stay visually
+             *  "above" the work that came after them — preserves the order
+             *  the user originally saw before the status flipped. */}
+            <Section
+              label="Completed"
+              count={buckets.completed.length}
+              open={completedOpen}
+              onToggle={() => setCompletedOpen((v) => !v)}
+            >
+              {buckets.completed.map((t) => (
+                <RefItem
+                  key={t.id}
+                  task={t}
+                  itemRefs={itemRefs}
+                  unresolved={[]}
+                  onJumpToBlocker={handleJumpToBlocker}
+                />
+              ))}
+            </Section>
             <Section
               label="Active"
               count={buckets.active.length}
@@ -136,22 +155,6 @@ function TaskListPanelInner({ title, variant = "rail", onClose }: TaskListPanelP
                   task={t}
                   itemRefs={itemRefs}
                   unresolved={unresolvedBlockers(t, buckets.completedIds)}
-                  onJumpToBlocker={handleJumpToBlocker}
-                />
-              ))}
-            </Section>
-            <Section
-              label="Completed"
-              count={buckets.completed.length}
-              open={completedOpen}
-              onToggle={() => setCompletedOpen((v) => !v)}
-            >
-              {buckets.completed.map((t) => (
-                <RefItem
-                  key={t.id}
-                  task={t}
-                  itemRefs={itemRefs}
-                  unresolved={[]}
                   onJumpToBlocker={handleJumpToBlocker}
                 />
               ))}
